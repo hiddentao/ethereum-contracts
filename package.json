@@ -1,0 +1,45 @@
+{
+  "name": "ethereum-contract",
+  "version": "1.0.0",
+  "description": "Ethereum contract wrapper for easier deployment, method invocation, automatic type conversion, etc.",
+  "main": "dist/ethereumContract.js",
+  "scripts": {
+    "build": "mkdir -p dist && babel src/index.js > dist/ethereumContract.js",
+    "test": "npm run build && istanbul cover _mocha -- --timeout 180000 --ui exports --reporter spec test/*.test.js",
+    "prepublish": "npm build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hiddentao/ethereum-contract.git"
+  },
+  "keywords": [
+    "ethereum",
+    "blockchain",
+    "contract",
+    "solidity",
+    "web3"
+  ],
+  "author": "Ramesh Nair <ram@hiddentao.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/hiddentao/ethereum-contract/issues"
+  },
+  "homepage": "https://github.com/hiddentao/ethereum-contract#readme",
+  "devDependencies": {
+    "babel-cli": "^6.14.0",
+    "babel-plugin-rename-umd-globals": "0.0.4",
+    "babel-plugin-transform-es2015-modules-umd": "^6.12.0",
+    "babel-preset-es2015": "^6.14.0",
+    "bluebird": "^3.4.6",
+    "chai": "^3.5.0",
+    "co-mocha": "^1.1.3",
+    "genomatic": "^1.0.0",
+    "geth-private": "^1.5.1",
+    "istanbul": "^0.4.5",
+    "lodash": "^4.15.0",
+    "mocha": "^3.0.2",
+    "sinon": "^1.17.5",
+    "sinon-chai": "^2.8.0",
+    "web3": "^0.17.0-alpha"
+  }
+}

@@ -160,7 +160,7 @@
                 return reject(err);
               }
 
-              if (!contract.address) {
+              if (!newContract.address) {
                 _this.logger.debug('New contract transaction: ' + newContract.transactionHash);
               } else {
                 _this.logger.info('New contract address: ' + newContract.address);
@@ -177,7 +177,7 @@
         var _this2 = this;
 
         return new Promise(function (resolve, reject) {
-          _this2._web3.eth.personal.unlockAccount(account.address, account.password, 2000, function (err) {
+          _this2._web3.personal.unlockAccount(account.address, account.password, 2000, function (err) {
             if (err) {
               _this2.logger.info('Error unlocking account ' + account.address + ': ' + err.message);
 
@@ -195,11 +195,9 @@
       value: function _sanitizeMethodArgs(method, args) {
         var _this3 = this;
 
-        this.logger.debug('Sanitize ' + args.length + ' arguments for method: ' + method + ' ...');
+        this.logger.debug('Sanitize ' + Object.keys(args).length + ' arguments for method: ' + method + ' ...');
 
         method = this._getMethodDescriptor(method);
-
-        var ret = [];
 
         return method.inputs.map(function (input) {
           if (!args.hasOwnProperty(input.name)) {
@@ -207,13 +205,11 @@
           }
 
           try {
-            ret.push(_this3._convertValue(args[input.name], input.type));
+            return _this3._convertValue(args[input.name], input.type);
           } catch (err) {
             throw new Error('Error converting value for argument ' + input.name + ' of method ' + method + ': ' + err.message);
           }
         });
-
-        return ret;
       }
     }, {
       key: '_getMethodDescriptor',
@@ -308,8 +304,6 @@
                       throw new Error('Value length must not be greater than ' + maxLen);
                     }
                   }
-                } else {
-                  // pass through!
                 }
 
         return value;
@@ -333,4 +327,3 @@
 
   module.exports = { Contract: Contract, ContractFactory: ContractFactory };
 });
-

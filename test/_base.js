@@ -78,6 +78,11 @@ module.exports = function(_module) {
     });
   };
   
+  
+  tools.loadContractAt = function*(contractData, address) {
+    return this.web3.eth.contract(JSON.parse(contractData.interface)).at(address);
+  };
+  
   tools.waitUntilNextBlock = function*() {
     const blockNum = this.web3.eth.blockNumber;
     
@@ -127,14 +132,7 @@ module.exports = function(_module) {
       yield this.stopGeth();
     },
     beforeEach: function*() {
-      this.mocker = sinon.sandbox.create();
-      
-      this.contractFactory = new this.ContractFactory({
-        web3: this.web3,
-        account: this.web3.eth.coinbase,
-        password: '1233',
-        gas: 500000,
-      });
+      this.mocker = sinon.sandbox.create();      
     },
     afterEach: function*() {
       this.mocker.restore();

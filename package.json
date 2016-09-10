@@ -4,8 +4,9 @@
   "description": "Ethereum contract wrapper for easier deployment, method invocation, automatic type conversion, etc.",
   "main": "dist/ethereumContracts.js",
   "scripts": {
-    "build": "mkdir -p dist && babel src/index.js > dist/ethereumContracts.js",
-    "test": "npm run build && istanbul cover _mocha -- --timeout 180000 --ui exports --reporter spec test/*.test.js"
+    "build": "mkdir -p dist && babel --out-file dist/ethereumContracts.js src/index.js",
+    "test": "npm run build && mocha --timeout 180000 --ui exports --reporter spec test/*.test.js",
+    "test-coverage": "npm run build && istanbul cover _mocha -- --timeout 180000 --ui exports --reporter spec test/*.test.js"
   },
   "repository": {
     "type": "git",

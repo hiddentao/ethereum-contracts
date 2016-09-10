@@ -4,7 +4,7 @@ contract PayContract {
     address vendor;
     uint16 net;
     
-    function PayContract(uint16 _fee, address _dest, string t, bytes32 b, bool kj) {
+    function PayContract(uint16 _fee, address _dest, string _str, bytes1 _data, bool _flag) {
         net = 1000 - _fee;
         dest = _dest;
         vendor = msg.sender;

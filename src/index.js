@@ -140,7 +140,7 @@ class Contract {
               return reject(err);
             }
             
-            if (!contract.address) {
+            if (!newContract.address) {
               this.logger.debug(`New contract transaction: ${newContract.transactionHash}`);  
             } else {
               this.logger.info(`New contract address: ${newContract.address}`);  
@@ -164,7 +164,7 @@ class Contract {
    */
   _unlockAccount (account) {
     return new Promise((resolve, reject) => {
-      this._web3.eth.personal.unlockAccount(
+      this._web3.personal.unlockAccount(
         account.address, account.password, 2000, (err) => {
           if (err) {
             this.logger.info(`Error unlocking account ${account.address}: ${err.message}`);
@@ -191,11 +191,9 @@ class Contract {
    * @throws {Error} If sanitization fails.
    */
   _sanitizeMethodArgs (method, args) {   
-    this.logger.debug(`Sanitize ${args.length} arguments for method: ${method} ...`);
+    this.logger.debug(`Sanitize ${Object.keys(args).length} arguments for method: ${method} ...`);
     
     method = this._getMethodDescriptor(method);
-    
-    let ret = [];
     
     return method.inputs.map((input) => {
       if (!args.hasOwnProperty(input.name)) {
@@ -203,13 +201,11 @@ class Contract {
       }
       
       try {
-        ret.push(this._convertValue(args[input.name], input.type));
+        return this._convertValue(args[input.name], input.type);
       } catch (err) {
         throw new Error(`Error converting value for argument ${input.name} of method ${method}: ${err.message}`);
       }
     });
-    
-    return ret;
   }
   
   
@@ -320,8 +316,6 @@ class Contract {
           throw new Error(`Value length must not be greater than ${maxLen}`);
         }
       }
-    } else {
-      // pass through!
     }
 
     return value;

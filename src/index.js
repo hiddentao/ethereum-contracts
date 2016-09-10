@@ -70,7 +70,7 @@ class Contract {
    * @param {String} [options.account.password] Password for account.
    * @param {Number} [options.gas] Gas amount to use. Overrides default set during construction.
    *
-   * @return {Promise} Resolves to contract address if successful.
+   * @return {Promise} Resolves to deployed contract address if successful.
    */
   deploy (args, options) {
     options = Object.assign({
@@ -78,35 +78,38 @@ class Contract {
       gas: this._gas,
     }, options);
     
-    this._unlockAccount(options.account);
-    
-    const sortedArgs = this._sanitizeMethodArgs('constructor', args);
-    
     this.logger.info(`Deploy contract from account ${options.account.address}...`);
 
-    return new Promise((resolve, reject) => {
-      this._contract.new.apply(this._contract, sortedArgs.concat([
-        {
-          data: this._bytecode,
-          gas: options.gas,
-          from: options.account.address,
-        },        
-        (err, newContract) => {
-          if (err) {
-            this.logger.error('Contract creation error', err);
+    return this._unlockAccount(options.account)
+    .then(() => {
+      const sortedArgs = this._sanitizeMethodArgs('constructor', args);
+
+      this.logger.debug(`Deploy contract ...`);
             
-            return reject(err);
-          }
-          
-          if (!contract.address) {
-            this.logger.debug(`New contract transaction: ${newContract.transactionHash}`);  
-          } else {
-            this.logger.info(`New contract address: ${newContract.address}`);  
+      return new Promise((resolve, reject) => {
+        this._contract.new.apply(this._contract, sortedArgs.concat([
+          {
+            data: this._bytecode,
+            gas: options.gas,
+            from: options.account.address,
+          },        
+          (err, newContract) => {
+            if (err) {
+              this.logger.error('Contract creation error', err);
+              
+              return reject(err);
+            }
             
-            resolve(newContract.address);
+            if (!contract.address) {
+              this.logger.debug(`New contract transaction: ${newContract.transactionHash}`);  
+            } else {
+              this.logger.info(`New contract address: ${newContract.address}`);  
+              
+              resolve(newContract.address);
+            }
           }
-        }
-      ]);
+        ]);
+      });
     });
   }
   

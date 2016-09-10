@@ -1,4 +1,4 @@
-# ethereum-contract
+# ethereum-contracts
 
 **WIP**
 

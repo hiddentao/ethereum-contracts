@@ -1,10 +1,10 @@
-# Contribute to ethereum-contract
+# Contribute to ethereum-contracts
 
 This guide guidelines for those wishing to contribute.
 
 ## Contributor license agreement
 
-By submitting code as an individual or as an entity you agree that your code is licensed the same as `ethereum-contract`.
+By submitting code as an individual or as an entity you agree that your code is licensed the same as `ethereum-contracts`.
 
 ## Issues and pull requests
 

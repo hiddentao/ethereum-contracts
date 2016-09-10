@@ -1,16 +1,15 @@
 {
-  "name": "ethereum-contract",
+  "name": "ethereum-contracts",
   "version": "1.0.0",
   "description": "Ethereum contract wrapper for easier deployment, method invocation, automatic type conversion, etc.",
-  "main": "dist/ethereumContract.js",
+  "main": "dist/ethereumContracts.js",
   "scripts": {
-    "build": "mkdir -p dist && babel src/index.js > dist/ethereumContract.js",
-    "test": "npm run build && istanbul cover _mocha -- --timeout 180000 --ui exports --reporter spec test/*.test.js",
-    "prepublish": "npm build"
+    "build": "mkdir -p dist && babel src/index.js > dist/ethereumContracts.js",
+    "test": "npm run build && istanbul cover _mocha -- --timeout 180000 --ui exports --reporter spec test/*.test.js"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/hiddentao/ethereum-contract.git"
+    "url": "git+https://github.com/hiddentao/ethereum-contracts.git"
   },
   "keywords": [
     "ethereum",
@@ -22,9 +21,9 @@
   "author": "Ramesh Nair <ram@hiddentao.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/hiddentao/ethereum-contract/issues"
+    "url": "https://github.com/hiddentao/ethereum-contracts/issues"
   },
-  "homepage": "https://github.com/hiddentao/ethereum-contract#readme",
+  "homepage": "https://github.com/hiddentao/ethereum-contracts#readme",
   "devDependencies": {
     "babel-cli": "^6.14.0",
     "babel-plugin-rename-umd-globals": "0.0.4",
@@ -38,8 +37,10 @@
     "istanbul": "^0.4.5",
     "lodash": "^4.15.0",
     "mocha": "^3.0.2",
+    "shelljs": "^0.7.4",
     "sinon": "^1.17.5",
     "sinon-chai": "^2.8.0",
+    "solc": "^0.4.1",
     "web3": "^0.17.0-alpha"
   }
 }

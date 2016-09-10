@@ -10,6 +10,46 @@ const DUMMY_LOGGER = {
 
 
 /**
+ * Factory for creating new contracts.
+ */
+class ContractFactory {
+  /**
+   * Constuct a new instance.
+   * 
+   * @param {Object} config Configuration.
+   * @param {Object} config.web3 A `Web3` instance.
+   * @param {Object} config.account Account to send transactions from.
+   * @param {String} config.account.address Address of account.
+   * @param {String} config.account.password Password for account.
+   * @param {Number} config.gas Gas amount to use for calls.
+   */
+  constructor (config) {
+    this._config = config;
+    this._web3 = config.web3;
+    this._account = config.account;
+    this._gas = config.gas;
+  }
+  
+  /**
+   * Make a wrapper for the given contract.
+   *
+   * @param {Object} config Configuration.
+   * @param {Object} config.contract Contract data, usually the output of `solc` compiler.
+   * @param {String} config.contract.interface Contract ABI interface JSON.
+   * @param {String} config.contract.bytecode Contract bytecode string.
+   */
+  make (config) {
+    return new Contract(Object.assign({}, config, {
+      gas: this._gas,
+      web3: this._web3,
+      account: this._account,
+    }));
+  }
+}
+
+
+
+/**
  * A contract.
  */
 class Contract {
@@ -24,7 +64,7 @@ class Contract {
    * @param {Object} config.account Account to send transactions from.
    * @param {String} config.account.address Address of account.
    * @param {String} config.account.password Password for account.
-   * @param {Number} config.gas Gas amount to use.
+   * @param {Number} config.gas Gas amount to use for calls.
    */
   constructor (config) {
     this._config = config;
@@ -108,7 +148,7 @@ class Contract {
               resolve(newContract.address);
             }
           }
-        ]);
+        ]));
       });
     });
   }
@@ -182,7 +222,7 @@ class Contract {
    * @throws {Error} If method not found.
    */
   _getMethodDescriptor (method) {
-    this.logger.debug(`Get method descriptor for: ${method} ...`);
+    this.logger.debug(`Get descriptor for method: ${method} ...`);
 
     let interfaceMethod = this._interface.find((item) => {
       return item.name === method || item.type === method;
@@ -223,7 +263,7 @@ class Contract {
       let maxValue, minValue;
       
       if (0 === targetType.indexOf('int')) {
-        minValue = -(Math.pow(2, (suffix-1)-1);
+        minValue = -(Math.pow(2, (suffix-1))-1);
         maxValue = Math.pow(2, (suffix-1))-1;
       } else {
         minValue = 0;
@@ -240,53 +280,53 @@ class Contract {
         throw new Error(`Value out of bounds (min=${minValue}, max=${maxValue})`);
       }
     }
-  }
-  // boolean
-  else if ('boolean' === targetType) {
-    value += '';
-    value = ('' === value || '0' === value || 'false' === value) ? false : true;
-  }
-  // string
-  else if ('string' === targetType) {
-    value = '' + value;
-  }
-  // address
-  else if ('address' === targetType) {
-    if ('number' === originalType) {
-      value = `0x${value.toString(16)}`;
+    // boolean
+    else if ('boolean' === targetType) {
+      value += '';
+      value = ('' === value || '0' === value || 'false' === value) ? false : true;
+    }
+    // string
+    else if ('string' === targetType) {
+      value = '' + value;
+    }
+    // address
+    else if ('address' === targetType) {
+      if ('number' === originalType) {
+        value = `0x${value.toString(16)}`;
+      } else {
+        value = value + '';
+      }
+      
+      if (!this._web3.isAddress(value)) {
+        throw new Error(`Value ${value} is not a valid address`);
+      }
+    }
+    // byte array
+    else if (0 === targetType.indexOf('byte')) {
+      if (!Array.isArray(value)) {
+        throw new Error(`Value must be an array`);
+      }
+      
+      // fixed length
+      if ('bytes' !== targetType) {
+        // See http://solidity.readthedocs.io/en/latest/types.html#fixed-size-byte-arrays
+        if ('byte' === targetType) {
+          targetType = 'bytes1';
+        }
+        
+        let maxLen = parseInt(targetType.substr(5), 10);
+        
+        if (value.length > maxLen) {
+          throw new Error(`Value length must not be greater than ${maxLen}`);
+        }
+      }
     } else {
-      value = value + '';
+      // pass through!
     }
-    
-    if (!this._web3.isAddress(value)) {
-      throw new Error(`Value ${value} is not a valid address`);
-    }
-  }
-  // byte array
-  else if (0 === targetType.indexOf('byte')) {
-    if (!Array.isArray(value)) {
-      throw new Error(`Value must be an array`);
-    }
-    
-    // fixed length
-    if ('bytes' !== targetType) {
-      // See http://solidity.readthedocs.io/en/latest/types.html#fixed-size-byte-arrays
-      if ('byte' === targetType) {
-        targetType = 'bytes1';
-      }
-      
-      let maxLen = parseInt(targetType.substr(5), 10);
-      
-      if (value.length > maxLen) {
-        throw new Error(`Value length must not be greater than ${maxLen}`);
-      }
-    }
-  } else {
-    // pass through!
-  }
 
-  return value;
+    return value;
+  }
 }
 
 
-module.exports = Contract;
+module.exports = { Contract, ContractFactory };

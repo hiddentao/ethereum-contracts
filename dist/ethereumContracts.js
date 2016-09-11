@@ -401,31 +401,35 @@
     _createClass(ContractInstance, [{
       key: 'localCall',
       value: function localCall(method, args) {
+        var parentContract = this.contract;
+
         this._logger.info('Local call ' + method + ' ...');
 
-        var sortedArgs = this.contract._sanitizeMethodArgs(method, args);
+        var sortedArgs = parentContract._sanitizeMethodArgs(method, args);
 
-        return this.contract._sanitizeMethodReturnValues(method, this._inst[method].call.apply(this._inst[method], sortedArgs));
+        return parentContract._sanitizeMethodReturnValues(method, this._inst[method].call.apply(this._inst[method], sortedArgs));
       }
     }, {
       key: 'sendCall',
       value: function sendCall(method, args, options) {
         var _this5 = this;
 
+        var parentContract = this.contract;
+
         options = Object.assign({
-          account: this.contract._account,
-          gas: this.contract._gas
+          account: parentContract._account,
+          gas: parentContract._gas
         }, options);
 
         this._logger.info('Call method ' + method + ' from account ' + options.account.address + '...');
 
-        return this.contract._unlockAccount(options.account).then(function () {
-          var sortedArgs = _this5.contract._sanitizeMethodArgs(method, args);
+        return parentContract._unlockAccount(options.account).then(function () {
+          var sortedArgs = parentContract._sanitizeMethodArgs(method, args);
 
           _this5._logger.debug('Execute method ' + method + ' ...');
 
           return new Promise(function (resolve, reject) {
-            _this5._contract[method].sendTransaction.apply(_this5._contract, sortedArgs.concat([{
+            _this5._inst[method].sendTransaction.apply(_this5._inst, sortedArgs.concat([{
               data: _this5._bytecode,
               gas: options.gas,
               from: options.account.address
@@ -444,6 +448,8 @@
 
                   return reject(err);
                 }
+
+                console.log(receipt);
 
                 resolve(receipt);
               });

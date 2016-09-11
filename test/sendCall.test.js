@@ -21,5 +21,35 @@ test.before = function*() {
 
 
 test['bad method'] = function*() {
-  yield this.contractInstance.sendCall('invalid');
+  try {
+    yield this.contractInstance.sendCall('invalid');
+    throw -1;
+  } catch (err) {
+    err.message.should.contain('Method not found');
+  }
 };
+
+
+
+test['bad argument'] = function*() {
+  try {
+    yield this.contractInstance.sendCall('increment', {
+      _amount: "haha"
+    });
+    throw -1;
+  } catch (err) {
+    err.message.should.contain('Value is not a number');
+  }
+};
+
+
+
+test['good call'] = function*() {
+  yield this.contractInstance.sendCall('increment', {
+    _amount: 12
+  });
+};
+
+
+
+

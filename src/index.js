@@ -440,11 +440,13 @@ class ContractInstance {
    * @throws {Error} For any call errors.
    */
   localCall(method, args) {
+    const parentContract = this.contract;
+
     this._logger.info(`Local call ${method} ...`);
     
-    const sortedArgs = this.contract._sanitizeMethodArgs(method, args);
+    const sortedArgs = parentContract._sanitizeMethodArgs(method, args);
 
-    return this.contract._sanitizeMethodReturnValues(
+    return parentContract._sanitizeMethodReturnValues(
       method,
       this._inst[method].call.apply(this._inst[method], sortedArgs) 
     );
@@ -467,21 +469,23 @@ class ContractInstance {
    * @return {Promise} Resolves to transaction receipt object if successful.
    */
   sendCall (method, args, options) {    
+    const parentContract = this.contract;
+    
     options = Object.assign({
-      account: this.contract._account,
-      gas: this.contract._gas,
+      account: parentContract._account,
+      gas: parentContract._gas,
     }, options);
     
     this._logger.info(`Call method ${method} from account ${options.account.address}...`);
 
-    return this.contract._unlockAccount(options.account)
+    return parentContract._unlockAccount(options.account)
     .then(() => {
-      const sortedArgs = this.contract._sanitizeMethodArgs(method, args);
+      const sortedArgs = parentContract._sanitizeMethodArgs(method, args);
 
       this._logger.debug(`Execute method ${method} ...`);
             
       return new Promise((resolve, reject) => {
-        this._contract[method].sendTransaction.apply(this._contract, sortedArgs.concat([
+        this._inst[method].sendTransaction.apply(this._inst, sortedArgs.concat([
           {
             data: this._bytecode,
             gas: options.gas,
@@ -494,17 +498,21 @@ class ContractInstance {
               return reject(err);
             }
             
-            this._logger.debug(`Fetch receipt for method call transaction ${txHash} ...`)
+            this._logger.debug(`Fetch receipt for method call transaction ${txHash} ...`);
             
-            this._web3.eth.getTransactionReceipt(txHash, (err, receipt) => {
-              if (err) {
-                this._logger.error('Transaction receipt error', err);
-                
-                return reject(err);
-              }
-              
-              resolve(receipt);
-            });
+            resolve(txHash);
+                        
+            // this._web3.eth.getTransactionReceipt(txHash, (err, receipt) => {
+            //   if (err) {
+            //     this._logger.error('Transaction receipt error', err);
+            //     
+            //     return reject(err);
+            //   }
+            //   
+            //   console.log(receipt);
+            //   
+            //   resolve(receipt);
+            // });
           }
         ]));
       });

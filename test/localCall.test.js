@@ -17,6 +17,7 @@ test.before = function*() {
   });
   
   this.contractInstance = yield this.contract.deploy();
+  // this.contract.logger = console;
 }
 
 

@@ -165,7 +165,10 @@
               } else {
                 _this.logger.info('New contract address: ' + newContract.address);
 
-                resolve(new ContractInstance(_this, newContract.address));
+                resolve(new ContractInstance({
+                  contract: _this,
+                  address: newContract.address
+                }));
               }
             }]));
           });
@@ -362,15 +365,31 @@
     /**
      * Construct a new instance.
      *
-     * @param {Contract} contract The contract instance.
-     * @param {String} address Address on blockchain.
+     * @param {Object} config Configuration.
+     * @param {Contract} config.contract The contract instance.
+     * @param {String} config.address Address on blockchain.
      */
-    function ContractInstance(contract, address) {
+    function ContractInstance(config) {
       _classCallCheck(this, ContractInstance);
 
-      this._contract = contract;
-      this._address = address;
+      this._config = config;
+      this._contract = config.contract;
+      this._web3 = this._contract._web3;
+      this._address = config.address;
       this._inst = this.contract._contract.at(this._address);
+
+      /*
+      Logger is same as parent contract one, except that address is prepended 
+      to all log output.
+       */
+      this._logger = {};
+      for (var logMethod in DUMMY_LOGGER) {
+        this._logger[logMethod] = function (logMethod, self) {
+          return function () {
+            self.contract.logger[logMethod].apply(self.contract.logger, ['[' + self.address + ']: '].concat(Array.from(arguments)));
+          };
+        }(logMethod, this);
+      }
     }
 
     /**
@@ -382,11 +401,55 @@
     _createClass(ContractInstance, [{
       key: 'localCall',
       value: function localCall(method, args) {
-        this.contract.logger.info('Local call ' + method + ' ...');
+        this._logger.info('Local call ' + method + ' ...');
 
         var sortedArgs = this.contract._sanitizeMethodArgs(method, args);
 
         return this.contract._sanitizeMethodReturnValues(method, this._inst[method].call.apply(this._inst[method], sortedArgs));
+      }
+    }, {
+      key: 'sendCall',
+      value: function sendCall(method, args, options) {
+        var _this5 = this;
+
+        options = Object.assign({
+          account: this.contract._account,
+          gas: this.contract._gas
+        }, options);
+
+        this._logger.info('Call method ' + method + ' from account ' + options.account.address + '...');
+
+        return this.contract._unlockAccount(options.account).then(function () {
+          var sortedArgs = _this5.contract._sanitizeMethodArgs(method, args);
+
+          _this5._logger.debug('Execute method ' + method + ' ...');
+
+          return new Promise(function (resolve, reject) {
+            _this5._contract[method].sendTransaction.apply(_this5._contract, sortedArgs.concat([{
+              data: _this5._bytecode,
+              gas: options.gas,
+              from: options.account.address
+            }, function (err, txHash) {
+              if (err) {
+                _this5._logger.error('Method call error', err);
+
+                return reject(err);
+              }
+
+              _this5._logger.debug('Fetch receipt for method call transaction ' + txHash + ' ...');
+
+              _this5._web3.eth.getTransactionReceipt(txHash, function (err, receipt) {
+                if (err) {
+                  _this5._logger.error('Transaction receipt error', err);
+
+                  return reject(err);
+                }
+
+                resolve(receipt);
+              });
+            }]));
+          });
+        });
       }
     }, {
       key: 'address',

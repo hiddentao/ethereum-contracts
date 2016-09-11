@@ -145,7 +145,10 @@ class Contract {
             } else {
               this.logger.info(`New contract address: ${newContract.address}`);  
               
-              resolve(new ContractInstance(this, newContract.address));
+              resolve(new ContractInstance({
+                contract: this, 
+                address: newContract.address
+              }));
             }
           }
         ]));
@@ -381,13 +384,32 @@ class ContractInstance {
   /**
    * Construct a new instance.
    *
-   * @param {Contract} contract The contract instance.
-   * @param {String} address Address on blockchain.
+   * @param {Object} config Configuration.
+   * @param {Contract} config.contract The contract instance.
+   * @param {String} config.address Address on blockchain.
    */
-  constructor (contract, address) {
-    this._contract = contract;
-    this._address = address;
+  constructor (config) {
+    this._config = config;
+    this._contract = config.contract;
+    this._web3 = this._contract._web3;
+    this._address = config.address;
     this._inst = this.contract._contract.at(this._address);
+    
+    /*
+    Logger is same as parent contract one, except that address is prepended 
+    to all log output.
+     */
+    this._logger = {};
+    for (let logMethod in DUMMY_LOGGER) {
+      this._logger[logMethod] = (function(logMethod, self) {
+        return function() {
+          self.contract.logger[logMethod].apply(
+            self.contract.logger, 
+            [`[${self.address}]: `].concat(Array.from(arguments))
+          );
+        };
+      })(logMethod, this);
+    }
   }
   
   /**
@@ -406,8 +428,10 @@ class ContractInstance {
     return this._contract;
   }
   
+
+  
   /**
-   * Make a local blockchain call to a method.
+   * Make a method call to the contract locally.
    *
    * @param {String} method Name of method to call.
    * @param {Object} args Method argument values.
@@ -416,7 +440,7 @@ class ContractInstance {
    * @throws {Error} For any call errors.
    */
   localCall(method, args) {
-    this.contract.logger.info(`Local call ${method} ...`);
+    this._logger.info(`Local call ${method} ...`);
     
     const sortedArgs = this.contract._sanitizeMethodArgs(method, args);
 
@@ -424,6 +448,67 @@ class ContractInstance {
       method,
       this._inst[method].call.apply(this._inst[method], sortedArgs) 
     );
+  }
+  
+  
+  
+  /**
+   * Make a method call to the contract by creating a transaction on the blockchain.
+   *
+   * @param {String} method Name of method to call.
+   * @param {Object} args Method argument values.
+   * @param {Object} [args] Contract constructor parameters.
+   * @param {Object} [options] Additional options.
+   * @param {String} [options.account] Account to send transaction from. Overrides default set during construction.
+   * @param {String} [options.account.address] Address of account.
+   * @param {String} [options.account.password] Password for account.
+   * @param {Number} [options.gas] Gas amount to use. Overrides default set during construction.
+   *
+   * @return {Promise} Resolves to transaction receipt object if successful.
+   */
+  sendCall (method, args, options) {    
+    options = Object.assign({
+      account: this.contract._account,
+      gas: this.contract._gas,
+    }, options);
+    
+    this._logger.info(`Call method ${method} from account ${options.account.address}...`);
+
+    return this.contract._unlockAccount(options.account)
+    .then(() => {
+      const sortedArgs = this.contract._sanitizeMethodArgs(method, args);
+
+      this._logger.debug(`Execute method ${method} ...`);
+            
+      return new Promise((resolve, reject) => {
+        this._contract[method].sendTransaction.apply(this._contract, sortedArgs.concat([
+          {
+            data: this._bytecode,
+            gas: options.gas,
+            from: options.account.address,
+          },        
+          (err, txHash) => {
+            if (err) {
+              this._logger.error('Method call error', err);
+              
+              return reject(err);
+            }
+            
+            this._logger.debug(`Fetch receipt for method call transaction ${txHash} ...`)
+            
+            this._web3.eth.getTransactionReceipt(txHash, (err, receipt) => {
+              if (err) {
+                this._logger.error('Transaction receipt error', err);
+                
+                return reject(err);
+              }
+              
+              resolve(receipt);
+            });
+          }
+        ]));
+      });
+    });
   }
 }
 

@@ -1,10 +1,10 @@
-contract PayContract {
+contract Pay {
     uint8 version = 1;
     address dest;
     address vendor;
     uint16 net;
     
-    function PayContract(uint16 _fee, address _dest, string _str, bytes1 _data, bool _flag) {
+    function Pay(uint16 _fee, address _dest, string _str, bytes1 _data, bool _flag) {
         net = 1000 - _fee;
         dest = _dest;
         vendor = msg.sender;

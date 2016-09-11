@@ -103,16 +103,16 @@ class Contract {
   /**
    * Deploy the contract to the blockchain.
    *
-   * @param {Object} args Contract constructor parameters.
+   * @param {Object} [args] Contract constructor parameters.
    * @param {Object} [options] Additional options.
    * @param {String} [options.account] Account to send transaction from. Overrides default set during construction.
    * @param {String} [options.account.address] Address of account.
    * @param {String} [options.account.password] Password for account.
    * @param {Number} [options.gas] Gas amount to use. Overrides default set during construction.
    *
-   * @return {Promise} Resolves to deployed contract address if successful.
+   * @return {Promise} Resolves to `ContractInstance` object if successful.
    */
-  deploy (args, options) {
+  deploy (args, options) {    
     options = Object.assign({
       account: this._account,
       gas: this._gas,
@@ -145,7 +145,7 @@ class Contract {
             } else {
               this.logger.info(`New contract address: ${newContract.address}`);  
               
-              resolve(newContract.address);
+              resolve(new ContractInstance(this, newContract.address));
             }
           }
         ]));
@@ -191,17 +191,30 @@ class Contract {
    * @throws {Error} If sanitization fails.
    */
   _sanitizeMethodArgs (method, args) {   
+    args = args || {};
+
     this.logger.debug(`Sanitize ${Object.keys(args).length} arguments for method: ${method} ...`);
     
-    method = this._getMethodDescriptor(method);
+    const methodAbi = this._getMethodDescriptor(method);
     
-    return method.inputs.map((input) => {
+    if (!methodAbi) {
+      // if not constructor found then it's a built-in constructor
+      if ('constructor' === method) {
+        this.logger.debug('Built-in constructor, so no default arguments.')
+        
+        return [];
+      } else {
+        throw new Error(`Method not found: ${method}`);
+      }
+    }
+    
+    return methodAbi.inputs.map((input) => {
       if (!args.hasOwnProperty(input.name)) {
         throw new Error(`Missing argument ${input.name} for method ${method}`);
       }
       
       try {
-        return this._convertValue(args[input.name], input.type);
+        return this._convertInputArg(args[input.name], input.type);
       } catch (err) {
         throw new Error(`Error converting value for argument ${input.name} of method ${method}: ${err.message}`);
       }
@@ -209,13 +222,46 @@ class Contract {
   }
   
   
+  
+  /**
+   * Sanitize return values from given contract method.
+   *
+   * @param {String} method The method name or type we wish to invoke.
+   * @param {Array|*} value Return value or values from method call.
+   *
+   * @return {Array|*} Value or values matching method's declared return type.
+   * @throws {Error} If sanitization fails.
+   */
+  _sanitizeMethodReturnValues (method, value) {   
+    const values = (Array.isArray(value)) ? value : [value];
+    
+    this.logger.debug(`Sanitize ${values.length} return values from method: ${method} ...`);
+    
+    const methodAbi = this._getMethodDescriptor(method);
+    
+    if (!methodAbi) {
+      throw new Error(`Method not found: ${method}`);
+    }
+    
+    const ret = methodAbi.outputs.map((output) => {
+      try {
+        return this._convertReturnValue(values.shift(), output.type);
+      } catch (err) {
+        throw new Error(`Error converting return value to type ${output.name} for method ${method}: ${err.message}`);
+      }
+    });
+    
+    return Array.isArray(value) ? ret : ret[0];
+  }
+  
+  
+  
   /**
    * Get ABI descriptor for method from the contract interface.
    *
    * @param {String} method Method name or type.
    *
-   * @return {Object} ABI.
-   * @throws {Error} If method not found.
+   * @return {Object} ABI if method found, `null` otherwise.
    */
   _getMethodDescriptor (method) {
     this.logger.debug(`Get descriptor for method: ${method} ...`);
@@ -224,16 +270,36 @@ class Contract {
       return item.name === method || item.type === method;
     });
     
-    if (!interfaceMethod) {
-      throw new Error(`Unable to find method ${method}`);
-    }    
-    
-    return interfaceMethod;
+    return interfaceMethod || null;
   }
   
   
   /**
-   * Convert a value to one of the given type.
+   * Convert return value to one of the given output type
+   *
+   * @param {*} value The return value.
+   * @param {String} targetType The return type.
+   *
+   * @return {*} Converted value.
+   * @throws {Error} If conversion fails.
+   */
+  _convertReturnValue (value, targetType) {
+    const originalType = typeof value;
+
+    this.logger.debug(`Convert return value of type ${originalType} to type ${targetType} ...`);
+    
+    // numbers
+    if (0 === targetType.indexOf('int') || 0 === targetType.indexOf('uint')) {
+      value = parseInt(this._web3.fromWei(value, 'wei'), 10);
+    }
+
+    return value;    
+  }
+  
+  
+  
+  /**
+   * Convert a value to one of the given input type.
    *
    * @param {*} value The original value.
    * @param {String} targetType The target type.
@@ -241,10 +307,10 @@ class Contract {
    * @return {*} Value of target type.
    * @throws {Error} If conversion fails.
    */
-  _convertValue (value, targetType) {
+  _convertInputArg (value, targetType) {
     const originalType = typeof value;
     
-    this.logger.debug(`Convert value of type ${originalType} to type ${targetType} ...`);
+    this.logger.debug(`Convert input value of type ${originalType} to type ${targetType} ...`);
     
     // numbers
     if (0 === targetType.indexOf('int') || 0 === targetType.indexOf('uint')) {
@@ -276,8 +342,8 @@ class Contract {
         throw new Error(`Value out of bounds (min=${minValue}, max=${maxValue})`);
       }
     }
-    // boolean
-    else if ('boolean' === targetType) {
+    // bool
+    else if ('bool' === targetType) {
       value += '';
       value = ('' === value || '0' === value || 'false' === value) ? false : true;
     }
@@ -288,34 +354,19 @@ class Contract {
     // address
     else if ('address' === targetType) {
       if ('number' === originalType) {
-        value = `0x${value.toString(16)}`;
+        value = `0000000000000000000000000000000000000000${value.toString(16)}`.slice(-40);
+        value = `0x${value}`;
       } else {
         value = value + '';
       }
       
       if (!this._web3.isAddress(value)) {
-        throw new Error(`Value ${value} is not a valid address`);
+        throw new Error(`Value is not a valid address`);
       }
     }
-    // byte array
+    // bytes
     else if (0 === targetType.indexOf('byte')) {
-      if (!Array.isArray(value)) {
-        throw new Error(`Value must be an array`);
-      }
-      
-      // fixed length
-      if ('bytes' !== targetType) {
-        // See http://solidity.readthedocs.io/en/latest/types.html#fixed-size-byte-arrays
-        if ('byte' === targetType) {
-          targetType = 'bytes1';
-        }
-        
-        let maxLen = parseInt(targetType.substr(5), 10);
-        
-        if (value.length > maxLen) {
-          throw new Error(`Value length must not be greater than ${maxLen}`);
-        }
-      }
+      value = this._web3.toHex(value);
     }
 
     return value;
@@ -323,4 +374,58 @@ class Contract {
 }
 
 
-module.exports = { Contract, ContractFactory };
+/**
+ * Instance of a `Contract` at a particular address.
+ */
+class ContractInstance {
+  /**
+   * Construct a new instance.
+   *
+   * @param {Contract} contract The contract instance.
+   * @param {String} address Address on blockchain.
+   */
+  constructor (contract, address) {
+    this._contract = contract;
+    this._address = address;
+    this._inst = this.contract._contract.at(this._address);
+  }
+  
+  /**
+   * Get address of this instance.
+   * @return {String}
+   */
+  get address () {
+    return this._address;
+  }
+  
+  /**
+   * Get original contract object.
+   * @return {Contract}
+   */
+  get contract () {
+    return this._contract;
+  }
+  
+  /**
+   * Make a local blockchain call to a method.
+   *
+   * @param {String} method Name of method to call.
+   * @param {Object} args Method argument values.
+   *
+   * @return {*} Result of calling contract method.
+   * @throws {Error} For any call errors.
+   */
+  localCall(method, args) {
+    this.contract.logger.info(`Local call ${method} ...`);
+    
+    const sortedArgs = this.contract._sanitizeMethodArgs(method, args);
+
+    return this.contract._sanitizeMethodReturnValues(
+      method,
+      this._inst[method].call.apply(this._inst[method], sortedArgs) 
+    );
+  }
+}
+
+
+module.exports = { ContractFactory, Contract, ContractInstance };

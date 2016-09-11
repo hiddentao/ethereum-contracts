@@ -9,7 +9,7 @@ test.before = function*() {
 
 test.beforeEach = function*() {
   this.payContract = new this.Contract({
-    contract: this.Solidity.PayContract,
+    contract: this.Solidity.Pay,
     web3: this.web3,
     account: {
       address: this.web3.eth.coinbase,
@@ -20,12 +20,12 @@ test.beforeEach = function*() {
 };
 
 
-test['default'] = function*() {  
+test['deploy and get contract instance'] = function*() {  
   // this.payContract.logger = console;
   
   const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
   
-  const deployedAddress = yield this.payContract.deploy({
+  const contractInstance = yield this.payContract.deploy({
     _fee: 5,
     _dest: dest,
     _str: 'test',
@@ -33,9 +33,10 @@ test['default'] = function*() {
     _flag: false    
   });
   
-  this.expect(deployedAddress).to.be.defined;
+  this.expect(contractInstance).to.be.instanceof(this.ContractInstance);
   
-  const contract = yield this.loadContractAt(this.Solidity.PayContract, deployedAddress);
+  const contract = yield this.loadContractAt(this.Solidity.Pay, contractInstance.address);
   
   contract.getDest.call().should.eql(dest);
+  contractInstance.localCall('getDest').should.eql(dest);
 };

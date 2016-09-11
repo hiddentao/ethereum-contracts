@@ -165,7 +165,7 @@
               } else {
                 _this.logger.info('New contract address: ' + newContract.address);
 
-                resolve(newContract.address);
+                resolve(new ContractInstance(_this, newContract.address));
               }
             }]));
           });
@@ -195,21 +195,59 @@
       value: function _sanitizeMethodArgs(method, args) {
         var _this3 = this;
 
+        args = args || {};
+
         this.logger.debug('Sanitize ' + Object.keys(args).length + ' arguments for method: ' + method + ' ...');
 
-        method = this._getMethodDescriptor(method);
+        var methodAbi = this._getMethodDescriptor(method);
 
-        return method.inputs.map(function (input) {
+        if (!methodAbi) {
+          // if not constructor found then it's a built-in constructor
+          if ('constructor' === method) {
+            this.logger.debug('Built-in constructor, so no default arguments.');
+
+            return [];
+          } else {
+            throw new Error('Method not found: ' + method);
+          }
+        }
+
+        return methodAbi.inputs.map(function (input) {
           if (!args.hasOwnProperty(input.name)) {
             throw new Error('Missing argument ' + input.name + ' for method ' + method);
           }
 
           try {
-            return _this3._convertValue(args[input.name], input.type);
+            return _this3._convertInputArg(args[input.name], input.type);
           } catch (err) {
             throw new Error('Error converting value for argument ' + input.name + ' of method ' + method + ': ' + err.message);
           }
         });
+      }
+    }, {
+      key: '_sanitizeMethodReturnValues',
+      value: function _sanitizeMethodReturnValues(method, value) {
+        var _this4 = this;
+
+        var values = Array.isArray(value) ? value : [value];
+
+        this.logger.debug('Sanitize ' + values.length + ' return values from method: ' + method + ' ...');
+
+        var methodAbi = this._getMethodDescriptor(method);
+
+        if (!methodAbi) {
+          throw new Error('Method not found: ' + method);
+        }
+
+        var ret = methodAbi.outputs.map(function (output) {
+          try {
+            return _this4._convertReturnValue(values.shift(), output.type);
+          } catch (err) {
+            throw new Error('Error converting return value to type ' + output.name + ' for method ' + method + ': ' + err.message);
+          }
+        });
+
+        return Array.isArray(value) ? ret : ret[0];
       }
     }, {
       key: '_getMethodDescriptor',
@@ -220,18 +258,28 @@
           return item.name === method || item.type === method;
         });
 
-        if (!interfaceMethod) {
-          throw new Error('Unable to find method ' + method);
-        }
-
-        return interfaceMethod;
+        return interfaceMethod || null;
       }
     }, {
-      key: '_convertValue',
-      value: function _convertValue(value, targetType) {
+      key: '_convertReturnValue',
+      value: function _convertReturnValue(value, targetType) {
         var originalType = typeof value === 'undefined' ? 'undefined' : _typeof(value);
 
-        this.logger.debug('Convert value of type ' + originalType + ' to type ' + targetType + ' ...');
+        this.logger.debug('Convert return value of type ' + originalType + ' to type ' + targetType + ' ...');
+
+        // numbers
+        if (0 === targetType.indexOf('int') || 0 === targetType.indexOf('uint')) {
+          value = parseInt(this._web3.fromWei(value, 'wei'), 10);
+        }
+
+        return value;
+      }
+    }, {
+      key: '_convertInputArg',
+      value: function _convertInputArg(value, targetType) {
+        var originalType = typeof value === 'undefined' ? 'undefined' : _typeof(value);
+
+        this.logger.debug('Convert input value of type ' + originalType + ' to type ' + targetType + ' ...');
 
         // numbers
         if (0 === targetType.indexOf('int') || 0 === targetType.indexOf('uint')) {
@@ -264,8 +312,8 @@
             throw new Error('Value out of bounds (min=' + minValue + ', max=' + maxValue + ')');
           }
         }
-        // boolean
-        else if ('boolean' === targetType) {
+        // bool
+        else if ('bool' === targetType) {
             value += '';
             value = '' === value || '0' === value || 'false' === value ? false : true;
           }
@@ -276,34 +324,19 @@
             // address
             else if ('address' === targetType) {
                 if ('number' === originalType) {
-                  value = '0x' + value.toString(16);
+                  value = ('0000000000000000000000000000000000000000' + value.toString(16)).slice(-40);
+                  value = '0x' + value;
                 } else {
                   value = value + '';
                 }
 
                 if (!this._web3.isAddress(value)) {
-                  throw new Error('Value ' + value + ' is not a valid address');
+                  throw new Error('Value is not a valid address');
                 }
               }
-              // byte array
+              // bytes
               else if (0 === targetType.indexOf('byte')) {
-                  if (!Array.isArray(value)) {
-                    throw new Error('Value must be an array');
-                  }
-
-                  // fixed length
-                  if ('bytes' !== targetType) {
-                    // See http://solidity.readthedocs.io/en/latest/types.html#fixed-size-byte-arrays
-                    if ('byte' === targetType) {
-                      targetType = 'bytes1';
-                    }
-
-                    var maxLen = parseInt(targetType.substr(5), 10);
-
-                    if (value.length > maxLen) {
-                      throw new Error('Value length must not be greater than ' + maxLen);
-                    }
-                  }
+                  value = this._web3.toHex(value);
                 }
 
         return value;
@@ -325,5 +358,50 @@
     return Contract;
   }();
 
-  module.exports = { Contract: Contract, ContractFactory: ContractFactory };
+  var ContractInstance = function () {
+    /**
+     * Construct a new instance.
+     *
+     * @param {Contract} contract The contract instance.
+     * @param {String} address Address on blockchain.
+     */
+    function ContractInstance(contract, address) {
+      _classCallCheck(this, ContractInstance);
+
+      this._contract = contract;
+      this._address = address;
+      this._inst = this.contract._contract.at(this._address);
+    }
+
+    /**
+     * Get address of this instance.
+     * @return {String}
+     */
+
+
+    _createClass(ContractInstance, [{
+      key: 'localCall',
+      value: function localCall(method, args) {
+        this.contract.logger.info('Local call ' + method + ' ...');
+
+        var sortedArgs = this.contract._sanitizeMethodArgs(method, args);
+
+        return this.contract._sanitizeMethodReturnValues(method, this._inst[method].call.apply(this._inst[method], sortedArgs));
+      }
+    }, {
+      key: 'address',
+      get: function get() {
+        return this._address;
+      }
+    }, {
+      key: 'contract',
+      get: function get() {
+        return this._contract;
+      }
+    }]);
+
+    return ContractInstance;
+  }();
+
+  module.exports = { ContractFactory: ContractFactory, Contract: Contract, ContractInstance: ContractInstance };
 });

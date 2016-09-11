@@ -23,6 +23,7 @@ chai.use(require('sinon-chai'));
 // pkg
 const EthereumContracts = require(path.join(__dirname, '..', 'dist', 'ethereumContracts.js')),
   Contract = EthereumContracts.Contract,
+  ContractInstance = EthereumContracts.ContractInstance,
   ContractFactory = EthereumContracts.ContractFactory;
 
 // contracts
@@ -31,7 +32,13 @@ const solidityFiles = shell.find(path.join(__dirname, 'contracts')).filter((file
 const soliditySources = 
   solidityFiles.map((file) => [ path.basename(file, '.sol'), fs.readFileSync(file, 'utf8').toString() ]);
 
-const solidityCompiled = solc.compile({ sources: _.fromPairs(soliditySources) }, 1).contracts;
+const solidityCompiled = solc.compile({ sources: _.fromPairs(soliditySources) }, 1);
+
+if (!solidityCompiled.contracts) {
+  console.error(solidityCompiled);
+  
+  throw new Error('Contract compilation error');
+}
 
 module.exports = function(_module) {
   const tools = {};
@@ -119,7 +126,8 @@ module.exports = function(_module) {
       
       this.Contract = Contract;
       this.ContractFactory = ContractFactory;
-      this.Solidity = solidityCompiled;
+      this.ContractInstance = ContractInstance;
+      this.Solidity = solidityCompiled.contracts;
 
       for (let k in tools) {
         this[k] = genomatic.bind(tools[k], this);

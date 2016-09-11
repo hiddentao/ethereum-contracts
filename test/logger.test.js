@@ -6,7 +6,7 @@ const test = require('./_base')(module);
 test.beforeEach = function*() {
   this.payContract = new this.Contract({
     web3: this.web3,
-    contract: this.Solidity.PayContract,
+    contract: this.Solidity.Pay,
   });
 };
 

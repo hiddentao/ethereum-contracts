@@ -7,7 +7,7 @@ blockchain and invoke their methods.
 
 Features:
 
-* Automatically type-casts method arguments and return values according to types in [contract ABI](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI).
+* Automatically [converts](#type-conversions) method arguments and return values according to types in [contract ABI](https://github.com/ethereum/wiki/wiki/Solidity,-Docs-and-ABI).
 * Auto-fetches transaction receipts for `sendTransaction` calls.
 * `Promise`-ified asynchronous interface for easy use.
 * Errors are gracefully handled
@@ -104,7 +104,7 @@ contract Counter {
 }
 ```
 
-We can invoke `increment()` by sending a transaction to the blockchain:
+We can invoke `increment()` by sending a transaction to the blockchain, which returns a `Promise`:
 
 ```js
 contractInstance.sendCall('increment')

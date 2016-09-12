@@ -1,7 +1,7 @@
 {
   "name": "ethereum-contracts",
   "version": "1.0.0",
-  "description": "Ethereum contract wrapper for easier deployment, method invocation, automatic type conversion, etc.",
+  "description": "Ethereum contracts wrapper for easier deployment, method invocation, automatic type conversion, etc.",
   "main": "dist/ethereumContracts.js",
   "scripts": {
     "build": "mkdir -p dist && babel --out-file dist/ethereumContracts.js src/index.js",

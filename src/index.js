@@ -466,7 +466,7 @@ class ContractInstance {
    * @param {String} [options.account.password] Password for account.
    * @param {Number} [options.gas] Gas amount to use. Overrides default set during construction.
    *
-   * @return {Promise} Resolves to transaction receipt object if successful.
+   * @return {Promise} Resolves to transaction receipt.
    */
   sendCall (method, args, options) {    
     const parentContract = this.contract;
@@ -498,24 +498,83 @@ class ContractInstance {
               return reject(err);
             }
             
-            this._logger.debug(`Fetch receipt for method call transaction ${txHash} ...`);
+            let tx = new Transaction({
+              parent: this,
+              hash: txHash
+            });
             
-            resolve(txHash);
-                        
-            // this._web3.eth.getTransactionReceipt(txHash, (err, receipt) => {
-            //   if (err) {
-            //     this._logger.error('Transaction receipt error', err);
-            //     
-            //     return reject(err);
-            //   }
-            //   
-            //   console.log(receipt);
-            //   
-            //   resolve(receipt);
-            // });
+            tx.getReceipt().then(resolve).catch(reject);
           }
         ]));
       });
+    });
+  }
+}
+
+
+/**
+ * Represents an active transation on the blockchain.
+ */
+class Transaction {
+  /**
+   * Constructor a transaction object.
+   *
+   * @param {Object} config Configuration options.
+   * @param {ContractInstance} config.parent The parent `ContratInstance`.
+   * @param {String} config.hash Transaction hash.
+   */
+  constructor (config) {
+    this._web3 = config.parent._web3;
+    this._logger = config.parent._logger;
+    this._hash = config.hash;
+  }
+  
+  /**
+   * Get transaction hash.
+   * @return {String}
+   */
+  get hash () {
+    return this._hash;
+  }
+  
+  /**
+   * Get receipt for this transaction.
+   *
+   * @return {Promise} resolves to receipt object.
+   */
+  getReceipt () {
+    return new Promise((resolve, reject) => {
+      this._fetchReceiptLoop(resolve, reject);
+    });
+  }
+
+  
+  /**
+   * Fetch receipt for given transaction.
+   *
+   * This will execute in an asynchronous loop until either the receipt is 
+   * available or the fetch gets cancelled.
+   *
+   * @param {Function} onSuccess Success callback. 
+   * @param {Function} onError Error callback.
+   */
+  _fetchReceiptLoop (onSuccess, onError) {
+    this._logger.debug(`Fetch receipt for tx ${this.hash} ...`);
+
+    this._web3.eth.getTransactionReceipt(this.hash, (err, receipt) => {
+      if (err) {
+        this._logger.error('Transaction receipt error', err);
+        
+        return onError(err);
+      }
+
+      if (receipt) {
+        onSuccess(receipt);
+      } else {
+        this._fetchReceiptLoopTimer = setTimeout(() => {
+          this._fetchReceiptLoop(onSuccess, onError);
+        }, 1000);
+      }
     });
   }
 }

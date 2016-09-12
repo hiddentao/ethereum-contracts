@@ -440,19 +440,12 @@
                 return reject(err);
               }
 
-              _this5._logger.debug('Fetch receipt for method call transaction ' + txHash + ' ...');
-
-              _this5._web3.eth.getTransactionReceipt(txHash, function (err, receipt) {
-                if (err) {
-                  _this5._logger.error('Transaction receipt error', err);
-
-                  return reject(err);
-                }
-
-                console.log(receipt);
-
-                resolve(receipt);
+              var tx = new Transaction({
+                parent: _this5,
+                hash: txHash
               });
+
+              tx.getReceipt().then(resolve).catch(reject);
             }]));
           });
         });
@@ -470,6 +463,70 @@
     }]);
 
     return ContractInstance;
+  }();
+
+  var Transaction = function () {
+    /**
+     * Constructor a transaction object.
+     *
+     * @param {Object} config Configuration options.
+     * @param {ContractInstance} config.parent The parent `ContratInstance`.
+     * @param {String} config.hash Transaction hash.
+     */
+    function Transaction(config) {
+      _classCallCheck(this, Transaction);
+
+      this._web3 = config.parent._web3;
+      this._logger = config.parent._logger;
+      this._hash = config.hash;
+    }
+
+    /**
+     * Get transaction hash.
+     * @return {String}
+     */
+
+
+    _createClass(Transaction, [{
+      key: 'getReceipt',
+      value: function getReceipt() {
+        var _this6 = this;
+
+        return new Promise(function (resolve, reject) {
+          _this6._fetchReceiptLoop(resolve, reject);
+        });
+      }
+    }, {
+      key: '_fetchReceiptLoop',
+      value: function _fetchReceiptLoop(onSuccess, onError) {
+        var _this7 = this;
+
+        this._logger.debug('Fetch receipt for tx ' + this.hash + ' ...');
+
+        this._web3.eth.getTransactionReceipt(this.hash, function (err, receipt) {
+          if (err) {
+            _this7._logger.error('Transaction receipt error', err);
+
+            return onError(err);
+          }
+
+          if (receipt) {
+            onSuccess(receipt);
+          } else {
+            _this7._fetchReceiptLoopTimer = setTimeout(function () {
+              _this7._fetchReceiptLoop(onSuccess, onError);
+            }, 1000);
+          }
+        });
+      }
+    }, {
+      key: 'hash',
+      get: function get() {
+        return this._hash;
+      }
+    }]);
+
+    return Transaction;
   }();
 
   module.exports = { ContractFactory: ContractFactory, Contract: Contract, ContractInstance: ContractInstance };

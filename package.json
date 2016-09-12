@@ -5,7 +5,7 @@
   "main": "dist/ethereumContracts.js",
   "scripts": {
     "build": "mkdir -p dist && babel --out-file dist/ethereumContracts.js src/index.js",
-    "test": "npm run build && mocha --timeout 180000 --ui exports --reporter spec test/send*.test.js",
+    "test": "npm run build && mocha --timeout 180000 --ui exports --reporter spec test/*.test.js",
     "test-coverage": "npm run build && istanbul cover _mocha -- --timeout 180000 --ui exports --reporter spec test/*.test.js"
   },
   "repository": {

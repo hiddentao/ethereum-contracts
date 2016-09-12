@@ -45,11 +45,70 @@ test['bad argument'] = function*() {
 
 
 test['good call'] = function*() {
-  yield this.contractInstance.sendCall('increment', {
+  let tx = yield this.contractInstance.sendCall('increment', {
     _amount: 12
   });
+  
+  tx.should.be.defined;
+  tx.blockNumber.should.be.gt(0);
 };
 
+
+
+test['not enough gas'] = function*() {
+  try {
+    yield this.contractInstance.sendCall('increment', {
+      _amount: 12
+    }, {
+      gas: 100
+    });
+    
+    throw -1;    
+  } catch (err) {
+    err.message.should.contain('gas too low');
+  }
+};
+
+
+
+
+test['bad account'] = function*() {
+  try {
+    yield this.contractInstance.sendCall('increment', {
+      _amount: 12
+    }, {
+      account: {
+        address: '0x9560E8AC6718A6a1CdcfF189d603c9063E413dA6',
+        password: 'blablabla'
+      }
+    });
+    
+    throw -1;    
+  } catch (err) {
+    err.message.should.contain('no key');
+  }
+};
+
+
+
+
+
+test['bad password'] = function*() {
+  try {
+    yield this.contractInstance.sendCall('increment', {
+      _amount: 12
+    }, {
+      account: {
+        address: this.web3.eth.coinbase,
+        password: 'blablabla'
+      }
+    });
+    
+    throw -1;    
+  } catch (err) {
+    err.message.should.contain('could not decrypt');
+  }
+};
 
 
 

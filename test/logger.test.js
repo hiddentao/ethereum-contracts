@@ -3,39 +3,46 @@
 const test = require('./_base')(module);
 
 
-test.beforeEach = function*() {
-  this.payContract = new this.Contract({
+test.before = function*() {
+  this.contract = new this.Contract({
+    contract: this.Solidity.Local,
     web3: this.web3,
-    contract: this.Solidity.Pay,
+    account: {
+      address: this.web3.eth.coinbase,
+      password: '1234',
+    },
+    gas: 500000,
   });
+  
+  yield this.waitUntilNextBlock();
 };
 
 
 test['nothing by default'] = function*() {
   let spy = this.mocker.spy(console, 'info');
   
-  this.payContract.logger.info('test');
+  yield this.contract.deploy();
   
   spy.should.not.have.been.called;
 };
 
 
 test['turn on and off'] = function*() {
-  let spy = this.mocker.spy();
+  let spy = this.mocker.spy(console, 'info');
   
-  this.payContract.logger = {
+  this.contract.logger = {
     info: spy,
   };
-
-  this.payContract.logger.info('test');
-
-  spy.should.have.been.calledWithExactly(`test`);
+  yield this.contract.deploy();
   
-  this.payContract.logger = null;
-
-  this.payContract.logger.info('test');
+  const callCount = spy.callCount;
+  callCount.should.be.gt(0);
   
-  spy.callCount.should.eql(1);
+  this.contract.logger = null;
+
+  yield this.contract.deploy();
+  
+  spy.callCount.should.eql(callCount);
 };
 
 
@@ -43,9 +50,9 @@ test['turn on and off'] = function*() {
 test['must be valid logger'] = function*() {
   let spy = this.mocker.spy();
   
-  this.payContract.logger = 'blah';
+  this.contract.logger = 'blah';
   
-  this.payContract.logger.info('test');
+  this.contract.logger.info('test');
 
   spy.should.not.have.been.called;
 };

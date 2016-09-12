@@ -9,19 +9,18 @@ test.before = function*() {
   this.contract = new this.Contract({
     contract: this.Solidity.Mutate,
     web3: this.web3,
-    account: {
-      address: this.web3.eth.coinbase,
-      password: '1234',
-    },
+    account: this.web3.eth.coinbase,
     gas: 750000,
   });
   
+  yield this.unlockAccount();
   this.contractInstance = yield this.contract.deploy();
 }
 
 
 test['bad method'] = function*() {
   try {
+    yield this.unlockAccount();
     yield this.contractInstance.sendCall('invalid');
     throw -1;
   } catch (err) {
@@ -33,6 +32,7 @@ test['bad method'] = function*() {
 
 test['bad argument'] = function*() {
   try {
+    yield this.unlockAccount();
     yield this.contractInstance.sendCall('increment', {
       _amount: "haha"
     });
@@ -45,6 +45,7 @@ test['bad argument'] = function*() {
 
 
 test['good call'] = function*() {
+  yield this.unlockAccount();
   let tx = yield this.contractInstance.sendCall('increment', {
     _amount: 12
   });
@@ -57,6 +58,7 @@ test['good call'] = function*() {
 
 test['not enough gas'] = function*() {
   try {
+    yield this.unlockAccount();
     yield this.contractInstance.sendCall('increment', {
       _amount: 12
     }, {
@@ -74,39 +76,17 @@ test['not enough gas'] = function*() {
 
 test['bad account'] = function*() {
   try {
+    yield this.unlockAccount();
+    
     yield this.contractInstance.sendCall('increment', {
       _amount: 12
     }, {
-      account: {
-        address: '0x9560E8AC6718A6a1CdcfF189d603c9063E413dA6',
-        password: 'blablabla'
-      }
+      account: '0x9560E8AC6718A6a1CdcfF189d603c9063E413dA6',
     });
     
     throw -1;    
   } catch (err) {
-    err.message.should.contain('no key');
-  }
-};
-
-
-
-
-
-test['bad password'] = function*() {
-  try {
-    yield this.contractInstance.sendCall('increment', {
-      _amount: 12
-    }, {
-      account: {
-        address: this.web3.eth.coinbase,
-        password: 'blablabla'
-      }
-    });
-    
-    throw -1;    
-  } catch (err) {
-    err.message.should.contain('could not decrypt');
+    err.message.should.contain('account is locked');
   }
 };
 

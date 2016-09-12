@@ -7,12 +7,28 @@ test.before = function*() {
   this.payContract = new this.Contract({
     contract: this.Solidity.Pay,
     web3: this.web3,
-    account: {
-      address: this.web3.eth.coinbase,
-      password: '1234',
-    },
+    account: this.web3.eth.coinbase,
     gas: 500000,
   });
+}
+
+
+test['account locked'] = function*() {
+  const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
+
+  try {
+    yield this.payContract.deploy({
+      _fee: 5,
+      _dest: dest,
+      _str: 'test',
+      _data: [1],
+      _flag: false    
+    });
+    
+    throw -1;
+  } catch (err) {
+    err.message.should.contain('account is locked');
+  }
 }
 
 
@@ -20,6 +36,8 @@ test['balance too low'] = function*() {
   const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
 
   try {
+    yield this.unlockAccount();
+    
     yield this.payContract.deploy({
       _fee: 5,
       _dest: dest,
@@ -44,6 +62,8 @@ test['balance enough'] = {
     
     const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
     
+    yield this.unlockAccount();
+
     const contractInstance = yield this.payContract.deploy({
       _fee: 5,
       _dest: dest,
@@ -65,6 +85,8 @@ test['balance enough'] = {
     const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
     
     try {
+      yield this.unlockAccount();
+
       yield this.payContract.deploy({
         _fee: 5,
         _dest: dest,
@@ -86,6 +108,8 @@ test['balance enough'] = {
     const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
     
     try {
+      yield this.unlockAccount();
+
       yield this.payContract.deploy({
         _fee: 5,
         _dest: dest,
@@ -93,39 +117,12 @@ test['balance enough'] = {
         _data: [1],
         _flag: false    
       }, {
-        account: {
-          address: '0x9560E8AC6718A6a1CdcfF189d603c9063E413dA6',
-          password: 'blahblahblah'
-        }
+        account: '0x9560E8AC6718A6a1CdcfF189d603c9063E413dA6',
       });
 
       throw -1;
     } catch (err) {
-      err.message.should.contain('gas too low');
-    }
-  },
-  'bad account': function*() {  
-    // this.payContract.logger = console;
-    
-    const dest = '0x2bd2326c993dfaef84f696526064ff22eba5b362';
-    
-    try {
-      yield this.payContract.deploy({
-        _fee: 5,
-        _dest: dest,
-        _str: 'test',
-        _data: [1],
-        _flag: false    
-      }, {
-        account: {
-          address: this.web3.eth.coinbase,
-          password: 'blahblahblah'
-        }
-      });
-
-      throw -1;
-    } catch (err) {
-      err.message.should.contain('could not decrypt');
+      err.message.should.contain('account is locked');
     }
   },
 }

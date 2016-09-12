@@ -60,9 +60,7 @@
      * 
      * @param {Object} config Configuration.
      * @param {Object} config.web3 A `Web3` instance.
-     * @param {Object} config.account Account to send transactions from.
-     * @param {String} config.account.address Address of account.
-     * @param {String} config.account.password Password for account.
+     * @param {Object} config.account Address of account to send transactions from.
      * @param {Number} config.gas Gas amount to use for calls.
      */
     function ContractFactory(config) {
@@ -107,9 +105,7 @@
      * @param {Object} contract.contract Contract data, usually the output of `solc` compiler.
      * @param {String} config.contract.interface Contract ABI interface JSON.
      * @param {String} config.contract.bytecode Contract bytecode string.
-     * @param {Object} config.account Account to send transactions from.
-     * @param {String} config.account.address Address of account.
-     * @param {String} config.account.password Password for account.
+     * @param {Object} config.account Address of account to send transactions from.
      * @param {Number} config.gas Gas amount to use for calls.
      */
     function Contract(config) {
@@ -141,9 +137,9 @@
           gas: this._gas
         }, options);
 
-        this.logger.info('Deploy contract from account ' + options.account.address + '...');
+        this.logger.info('Deploy contract from account ' + options.account + '...');
 
-        return this._unlockAccount(options.account).then(function () {
+        return Promise.resolve().then(function () {
           var sortedArgs = _this._sanitizeMethodArgs('constructor', args);
 
           _this.logger.debug('Deploy contract ...');
@@ -152,7 +148,7 @@
             _this._contract.new.apply(_this._contract, sortedArgs.concat([{
               data: _this._bytecode,
               gas: options.gas,
-              from: options.account.address
+              from: options.account
             }, function (err, newContract) {
               if (err) {
                 _this.logger.error('Contract creation error', err);
@@ -175,28 +171,9 @@
         });
       }
     }, {
-      key: '_unlockAccount',
-      value: function _unlockAccount(account) {
-        var _this2 = this;
-
-        return new Promise(function (resolve, reject) {
-          _this2._web3.personal.unlockAccount(account.address, account.password, 2000, function (err) {
-            if (err) {
-              _this2.logger.info('Error unlocking account ' + account.address + ': ' + err.message);
-
-              return reject(err);
-            }
-
-            _this2.logger.info('Unlocked account ' + account.address + ' for 2 seconds.');
-
-            resolve();
-          });
-        });
-      }
-    }, {
       key: '_sanitizeMethodArgs',
       value: function _sanitizeMethodArgs(method, args) {
-        var _this3 = this;
+        var _this2 = this;
 
         args = args || {};
 
@@ -221,7 +198,7 @@
           }
 
           try {
-            return _this3._convertInputArg(args[input.name], input.type);
+            return _this2._convertInputArg(args[input.name], input.type);
           } catch (err) {
             throw new Error('Error converting value for argument ' + input.name + ' of method ' + method + ': ' + err.message);
           }
@@ -230,7 +207,7 @@
     }, {
       key: '_sanitizeMethodReturnValues',
       value: function _sanitizeMethodReturnValues(method, value) {
-        var _this4 = this;
+        var _this3 = this;
 
         var values = Array.isArray(value) ? value : [value];
 
@@ -244,7 +221,7 @@
 
         var ret = methodAbi.outputs.map(function (output) {
           try {
-            return _this4._convertReturnValue(values.shift(), output.type);
+            return _this3._convertReturnValue(values.shift(), output.type);
           } catch (err) {
             throw new Error('Error converting return value to type ' + output.name + ' for method ' + method + ': ' + err.message);
           }
@@ -412,7 +389,7 @@
     }, {
       key: 'sendCall',
       value: function sendCall(method, args, options) {
-        var _this5 = this;
+        var _this4 = this;
 
         var parentContract = this.contract;
 
@@ -421,27 +398,27 @@
           gas: parentContract._gas
         }, options);
 
-        this._logger.info('Call method ' + method + ' from account ' + options.account.address + '...');
+        this._logger.info('Call method ' + method + ' from account ' + options.account + '...');
 
-        return parentContract._unlockAccount(options.account).then(function () {
+        return Promise.resolve().then(function () {
           var sortedArgs = parentContract._sanitizeMethodArgs(method, args);
 
-          _this5._logger.debug('Execute method ' + method + ' ...');
+          _this4._logger.debug('Execute method ' + method + ' ...');
 
           return new Promise(function (resolve, reject) {
-            _this5._inst[method].sendTransaction.apply(_this5._inst, sortedArgs.concat([{
-              data: _this5._bytecode,
+            _this4._inst[method].sendTransaction.apply(_this4._inst, sortedArgs.concat([{
+              data: _this4._bytecode,
               gas: options.gas,
-              from: options.account.address
+              from: options.account
             }, function (err, txHash) {
               if (err) {
-                _this5._logger.error('Method call error', err);
+                _this4._logger.error('Method call error', err);
 
                 return reject(err);
               }
 
               var tx = new Transaction({
-                parent: _this5,
+                parent: _this4,
                 hash: txHash
               });
 
@@ -490,22 +467,22 @@
     _createClass(Transaction, [{
       key: 'getReceipt',
       value: function getReceipt() {
-        var _this6 = this;
+        var _this5 = this;
 
         return new Promise(function (resolve, reject) {
-          _this6._fetchReceiptLoop(resolve, reject);
+          _this5._fetchReceiptLoop(resolve, reject);
         });
       }
     }, {
       key: '_fetchReceiptLoop',
       value: function _fetchReceiptLoop(onSuccess, onError) {
-        var _this7 = this;
+        var _this6 = this;
 
         this._logger.debug('Fetch receipt for tx ' + this.hash + ' ...');
 
         this._web3.eth.getTransactionReceipt(this.hash, function (err, receipt) {
           if (err) {
-            _this7._logger.error('Transaction receipt error', err);
+            _this6._logger.error('Transaction receipt error', err);
 
             return onError(err);
           }
@@ -513,8 +490,8 @@
           if (receipt) {
             onSuccess(receipt);
           } else {
-            _this7._fetchReceiptLoopTimer = setTimeout(function () {
-              _this7._fetchReceiptLoop(onSuccess, onError);
+            _this6._fetchReceiptLoopTimer = setTimeout(function () {
+              _this6._fetchReceiptLoop(onSuccess, onError);
             }, 1000);
           }
         });

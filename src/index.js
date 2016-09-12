@@ -18,9 +18,7 @@ class ContractFactory {
    * 
    * @param {Object} config Configuration.
    * @param {Object} config.web3 A `Web3` instance.
-   * @param {Object} config.account Account to send transactions from.
-   * @param {String} config.account.address Address of account.
-   * @param {String} config.account.password Password for account.
+   * @param {Object} config.account Address of account to send transactions from.
    * @param {Number} config.gas Gas amount to use for calls.
    */
   constructor (config) {
@@ -61,9 +59,7 @@ class Contract {
    * @param {Object} contract.contract Contract data, usually the output of `solc` compiler.
    * @param {String} config.contract.interface Contract ABI interface JSON.
    * @param {String} config.contract.bytecode Contract bytecode string.
-   * @param {Object} config.account Account to send transactions from.
-   * @param {String} config.account.address Address of account.
-   * @param {String} config.account.password Password for account.
+   * @param {Object} config.account Address of account to send transactions from.
    * @param {Number} config.gas Gas amount to use for calls.
    */
   constructor (config) {
@@ -105,9 +101,7 @@ class Contract {
    *
    * @param {Object} [args] Contract constructor parameters.
    * @param {Object} [options] Additional options.
-   * @param {String} [options.account] Account to send transaction from. Overrides default set during construction.
-   * @param {String} [options.account.address] Address of account.
-   * @param {String} [options.account.password] Password for account.
+   * @param {String} [options.account] Address of account to send transaction from. Overrides default set during construction.
    * @param {Number} [options.gas] Gas amount to use. Overrides default set during construction.
    *
    * @return {Promise} Resolves to `ContractInstance` object if successful.
@@ -118,9 +112,9 @@ class Contract {
       gas: this._gas,
     }, options);
     
-    this.logger.info(`Deploy contract from account ${options.account.address}...`);
+    this.logger.info(`Deploy contract from account ${options.account}...`);
 
-    return this._unlockAccount(options.account)
+    return Promise.resolve()
     .then(() => {
       const sortedArgs = this._sanitizeMethodArgs('constructor', args);
 
@@ -131,7 +125,7 @@ class Contract {
           {
             data: this._bytecode,
             gas: options.gas,
-            from: options.account.address,
+            from: options.account,
           },        
           (err, newContract) => {
             if (err) {
@@ -153,33 +147,6 @@ class Contract {
           }
         ]));
       });
-    });
-  }
-  
-  /**
-   * Unlock given account.
-   *
-   * @param {Object} account Account details.
-   * @param {String} account.address Account address.
-   * @param {String} account.password Account passwrd.
-   *
-   * @return {Promise}
-   */
-  _unlockAccount (account) {
-    return new Promise((resolve, reject) => {
-      this._web3.personal.unlockAccount(
-        account.address, account.password, 2000, (err) => {
-          if (err) {
-            this.logger.info(`Error unlocking account ${account.address}: ${err.message}`);
-            
-            return reject(err);
-          }
-          
-          this.logger.info(`Unlocked account ${account.address} for 2 seconds.`);
-          
-          resolve();
-        }
-      );
     });
   }
   
@@ -461,9 +428,7 @@ class ContractInstance {
    * @param {Object} args Method argument values.
    * @param {Object} [args] Contract constructor parameters.
    * @param {Object} [options] Additional options.
-   * @param {String} [options.account] Account to send transaction from. Overrides default set during construction.
-   * @param {String} [options.account.address] Address of account.
-   * @param {String} [options.account.password] Password for account.
+   * @param {String} [options.account] Address of account to send transaction from. Overrides default set during construction.
    * @param {Number} [options.gas] Gas amount to use. Overrides default set during construction.
    *
    * @return {Promise} Resolves to transaction receipt.
@@ -476,9 +441,9 @@ class ContractInstance {
       gas: parentContract._gas,
     }, options);
     
-    this._logger.info(`Call method ${method} from account ${options.account.address}...`);
+    this._logger.info(`Call method ${method} from account ${options.account}...`);
 
-    return parentContract._unlockAccount(options.account)
+    return Promise.resolve()
     .then(() => {
       const sortedArgs = parentContract._sanitizeMethodArgs(method, args);
 
@@ -489,7 +454,7 @@ class ContractInstance {
           {
             data: this._bytecode,
             gas: options.gas,
-            from: options.account.address,
+            from: options.account,
           },        
           (err, txHash) => {
             if (err) {

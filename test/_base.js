@@ -90,6 +90,18 @@ module.exports = function(_module) {
     return this.web3.eth.contract(JSON.parse(contractData.interface)).at(address);
   };
   
+  tools.unlockAccount = function*() {
+    yield new Promise((resolve, reject) => {
+      this.web3.personal.unlockAccount(this.web3.eth.coinbase, '1234', 2000, (err) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve();
+        }
+      }); 
+    });
+  }
+  
   tools.waitUntilNextBlock = function*() {
     const blockNum = this.web3.eth.blockNumber;
     

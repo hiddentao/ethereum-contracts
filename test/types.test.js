@@ -9,13 +9,11 @@ test.before = function*() {
   this.contract = new this.Contract({
     contract: this.Solidity.Types,
     web3: this.web3,
-    account: {
-      address: this.web3.eth.coinbase,
-      password: '1234',
-    },
+    account: this.web3.eth.coinbase,
     gas: 750000,
   });
   
+  yield this.unlockAccount();
   this.contractInstance = yield this.contract.deploy();
 }
 

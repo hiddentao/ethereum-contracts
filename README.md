@@ -37,10 +37,7 @@ const web3 = new Web3(/* connect to running Geth node */);
 const factory = new ContractFactory({
   web3: web3,
   /* Account from which to make transactions */
-  account: {
-    address: web3.eth.coinbase,
-    password: 'the account password' 
-  },
+  account: web3.eth.coinbase,
   /* Default gas to use for any transaction */
   gas: 500000 
 });
@@ -68,6 +65,9 @@ representing an instance of the contract at its deployed address.
 
 This instance exposes an API which by which you can methods within the 
 deployed contract.
+
+**Note: If you get an error stating that your account is locked then you 
+may need to unlock it first using [`web3.personal.unlockAccount()`](https://github.com/ethereum/go-ethereum/wiki/JavaScript-Console#personalunlockaccount).**
 
 ### Invoking contract methods locally
 
@@ -164,19 +164,13 @@ import { Contract } from 'ethereum-contracts';
 contract = new Contract({
   web3: web3,
   contract: contractData,
-  account: {
-    address: web3.eth.coinbase,
-    password: 'password'
-  },
+  account: web3.eth.coinbase,
   gas: 500000
 })
 
 contract.deploy({}, {
   /* override account */
-  account: {
-    address: '0xaa1a6e3e6ef20068f7f8d8c835d2d22fd5116444',
-    password: '12345'
-  }
+  account: '0xaa1a6e3e6ef20068f7f8d8c835d2d22fd5116444',
 })
 .then((contractInstance) => {
   return contractInstance.sendCall('increment', {}, {
@@ -193,10 +187,7 @@ If you are not using a packaging manager and are instead importing [ethereumCont
 ```js
 const contractFactory = new window.EthereumContracts.ContractFactory({
   web3: web3,
-  account: {
-    address: web3.eth.coinbase,
-    password: 'the account password' 
-  },
+  account: web3.eth.coinbase,
   gas: 500000
 });
 ```
